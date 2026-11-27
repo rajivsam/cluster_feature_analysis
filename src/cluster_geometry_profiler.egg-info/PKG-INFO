@@ -1,0 +1,86 @@
+Metadata-Version: 2.4
+Name: cluster-geometry-profiler
+Version: 0.1.0
+Summary: High-dimensional geometry diagnostics for principled clustering
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: numpy>=1.24
+Requires-Dist: scipy>=1.10
+Requires-Dist: scikit-learn>=1.3
+Requires-Dist: pandas>=2.0
+Requires-Dist: matplotlib>=3.7
+Provides-Extra: test
+Requires-Dist: pytest>=7.4; extra == "test"
+Provides-Extra: visualization
+Requires-Dist: umap-learn>=0.5; extra == "visualization"
+
+# Cluster Geometry Profiler
+
+`cluster-geometry-profiler` audits high-dimensional tabular data before
+clustering. It separates the desired domain invariance from the data's
+geometric structure, reports quantitative diagnostics, and builds an
+executable scikit-learn pipeline from the recommendation.
+
+```python
+from cluster_profiler import ClusterGeometryProfiler, build_pipeline
+
+profiler = ClusterGeometryProfiler(random_state=42)
+profiler.fit_audit(X, invariance="translation")
+print(profiler.summary())
+
+pipeline = build_pipeline(profiler, n_clusters=4)
+labels = pipeline.fit_predict(X)
+
+analysis = ClusterGeometryProfiler().analyze_clusters(
+    X, n_clusters=4, feature_names=["age", "tenure", "volume"]
+)
+report = analysis.to_report_dict()
+json_report = analysis.to_json()
+feature_profile = analysis.report_frame("retained_features_profile")
+summary_figures = analysis.create_summary_figure(
+    X, output_path="output"
+)
+```
+
+## Client notebook API
+
+The supported notebook-facing interface is:
+
+```python
+from cluster_profiler import ClusterGeometryProfiler
+
+profiler = ClusterGeometryProfiler(random_state=42)
+profiler.fit_audit(X, invariance="none", feature_names=list(X.columns))
+
+profiler.screening_stages()
+profiler.retained_feature_names
+profiler.to_report_dict()
+profiler.report_frame("dropped_features_report")
+
+profiler.analyze_clusters(X, n_clusters=4)
+profiler.labels
+profiler.export_drop_report("output/dropped_features.csv")
+profiler.export_filtered_dataset(
+    X, "output/filtered_features.csv", include_cluster=True
+)
+profiler.create_summary_figure(X, output_path="output")
+profiler.visualization_metadata()
+```
+
+Notebook users should prefer these methods and properties over fitted sklearn
+attributes such as `feature_selector_`, `pipeline_`, or `report_`.
+
+The analysis applies three non-parametric hygiene gates before geometry
+diagnostics, records every dropped feature and its quantitative rationale, and
+profiles retained feature separation with Kruskal-Wallis epsilon squared,
+mutual information, and cluster-conditioned median/MAD/IQR summaries.
+Four standalone diagnostic figures use the audited geometry, enforce
+cluster-stratified rendering caps, and record projection/sample metadata in the
+executive summary. Feature-removal percentages are explicitly scoped to their
+stage denominator.
+
+Run the test suite with:
+
+```bash
+python -m pytest
+```
